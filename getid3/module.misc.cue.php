@@ -73,7 +73,7 @@ class getid3_cue extends getid3_handler
 	public function readCueSheet(&$filedata)
 	{
 		$cue_lines = array();
-		foreach (explode("\n", str_replace("\r", null, $filedata)) as $line)
+		foreach (explode("\n", str_replace("\r", '', $filedata)) as $line)
 		{
 			if ( (strlen($line) > 0) && ($line[0] != '#'))
 			{
@@ -97,7 +97,7 @@ class getid3_cue extends getid3_handler
 		$currentFile = null;
 
 		foreach ($file as $line) {
-			list($key) = explode(' ', strtolower($line), 2);
+			[$key] = explode(' ', strtolower($line), 2);
 			switch ($key)
 			{
 				case 'catalog':
@@ -147,7 +147,7 @@ class getid3_cue extends getid3_handler
 	public function parseComment($line, $track_on)
 	{
 		$explodedline = explode(' ', $line, 3);
-		$comment_REM  = (isset($explodedline[0]) ? $explodedline[0] : '');
+		$comment_REM  = $explodedline[0];
 		$comment_type = (isset($explodedline[1]) ? $explodedline[1] : '');
 		$comment_data = (isset($explodedline[2]) ? $explodedline[2] : '');
 		if (($comment_REM == 'REM') && $comment_type) {
@@ -262,7 +262,7 @@ class getid3_cue extends getid3_handler
 
 		//extract the minutes, seconds, and frames
 		$explodedline = explode(':', $line);
-		$minutes = (isset($explodedline[0]) ? $explodedline[0] : '');
+		$minutes = $explodedline[0];
 		$seconds = (isset($explodedline[1]) ? $explodedline[1] : '');
 		$frames  = (isset($explodedline[2]) ? $explodedline[2] : '');
 

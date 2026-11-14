@@ -22,7 +22,7 @@ getID3() is released under multiple licenses. You may choose from the following 
 
 **getID3 Commercial License:**
 
-* [gCL](https://www.getid3.org/#gCL) (payment required)
+* [gCL](https://www.getid3.org/#gCL) (no longer available, existing licenses remain valid)
 
 * * *
 Copies of each of the above licenses are included in the `licenses/`
@@ -46,7 +46,7 @@ Support
 
 **Q:** I have a question, or I found a bug. What do I do?
 
-**A:** The preferred method of support requests and/or bug reports is the forum at <http://support.getid3.org/>
+**A:** The preferred method of support requests and/or bug reports is <https://github.com/JamesHeinrich/getID3/issues>
 
 
 
@@ -125,7 +125,7 @@ Reads & parses (to varying degrees):
   * SWF (Flash)
   * PhotoCD
 
-+ data: 
++ data:
   * ISO-9660 CD-ROM image (directory structure)
   * SZIP (limited support)
   * ZIP (directory structure)
@@ -146,13 +146,23 @@ Reads & parses (to varying degrees):
 Requirements
 ===
 
-* PHP 4.2.0 up to 5.2.x for getID3() 1.7.x (and earlier)
-* PHP 5.0.5 (or higher) for getID3() 1.8.x (and up)
-* PHP 5.0.5 (or higher) for getID3() 2.0.x (and up)
+* PHP 4.2.0 up to 5.2.x for getID3() 1.7.x  (and earlier)
+* PHP 5.0.5 (or higher) for getID3() 1.8.x  (and up)
+* PHP 5.3.0 (or higher) for getID3() 1.9.x  (earlier versions)
+* PHP 7.1.0 (or higher) for getID3() 1.9.28 (and up)
+* PHP 5.4.0 (or higher) for getID3() 2.0.x  (and up)
 * at least 4MB memory for PHP. 8MB or more is highly recommended.
   12MB is required with all modules loaded.
 
+Installation
+===
+The preferred method is via [composer](https://getcomposer.org/). Follow the installation [instructions](https://getcomposer.org/doc/00-intro.md) if you do not already have composer installed.
 
+Once composer is installed, execute the following command in your project root to install this library:
+
+```
+composer require james-heinrich/getid3
+```
 
 Usage
 ===
@@ -289,7 +299,7 @@ could essentially write it today with a one-line function:
 
 ``` php
 function getID3($filename) { return unpack('a3TAG/a30title/a30artist/a30album/a4year/a28comment/c1track/c1genreid', substr(file_get_contents($filename), -128)); }
-    
+
 ```
 
 

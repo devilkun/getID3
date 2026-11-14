@@ -35,8 +35,7 @@ class getid3_jpg extends getid3_handler
 		$this->fseek($info['avdataoffset']);
 
 		$imageinfo = array();
-		//list($width, $height, $type) = getid3_lib::GetDataImageSize($this->fread($info['filesize']), $imageinfo);
-		list($width, $height, $type) = getimagesize($info['filenamepath'], $imageinfo); // https://www.getid3.org/phpBB3/viewtopic.php?t=1474
+		[$width, $height, $type] = getimagesize($info['filenamepath'], $imageinfo);
 
 
 		if (isset($imageinfo['APP13'])) {
@@ -45,7 +44,7 @@ class getid3_jpg extends getid3_handler
 			$iptc_parsed = iptcparse($imageinfo['APP13']);
 			if (is_array($iptc_parsed)) {
 				foreach ($iptc_parsed as $iptc_key_raw => $iptc_values) {
-					list($iptc_record, $iptc_tagkey) = explode('#', $iptc_key_raw);
+					[$iptc_record, $iptc_tagkey] = explode('#', $iptc_key_raw);
 					$iptc_tagkey = intval(ltrim($iptc_tagkey, '0'));
 					foreach ($iptc_values as $key => $value) {
 						$IPTCrecordName = $this->IPTCrecordName($iptc_record);
@@ -116,12 +115,13 @@ class getid3_jpg extends getid3_handler
 			}
 
 			if (isset($info['jpg']['exif']['GPS']['GPSDateStamp'])) {
+				$computed_time = array(0=>0, 1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
+
 				$explodedGPSDateStamp = explode(':', $info['jpg']['exif']['GPS']['GPSDateStamp']);
-				$computed_time[5] = (isset($explodedGPSDateStamp[0]) ? $explodedGPSDateStamp[0] : '');
+				$computed_time[5] = $explodedGPSDateStamp[0];
 				$computed_time[3] = (isset($explodedGPSDateStamp[1]) ? $explodedGPSDateStamp[1] : '');
 				$computed_time[4] = (isset($explodedGPSDateStamp[2]) ? $explodedGPSDateStamp[2] : '');
 
-				$computed_time = array(0=>0, 1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
 				if (isset($info['jpg']['exif']['GPS']['GPSTimeStamp']) && is_array($info['jpg']['exif']['GPS']['GPSTimeStamp'])) {
 					foreach ($info['jpg']['exif']['GPS']['GPSTimeStamp'] as $key => $value) {
 						$computed_time[$key] = getid3_lib::DecimalizeFraction($value);
@@ -164,7 +164,7 @@ class getid3_jpg extends getid3_handler
 			$xmp_raw = $image_xmp->getAllTags();
 			foreach ($xmp_raw as $key => $value) {
 				if (strpos($key, ':')) {
-					list($subsection, $tagname) = explode(':', $key);
+					[$subsection, $tagname] = explode(':', $key);
 					$info['xmp'][$subsection][$tagname] = $this->CastAsAppropriate($value);
 				} else {
 					$this->warning('XMP: expecting "<subsection>:<tagname>", found "'.$key.'"');
@@ -185,7 +185,7 @@ class getid3_jpg extends getid3_handler
 	 * @return mixed
 	 */
 	public function CastAsAppropriate($value) {
-		if (is_array($value)) {
+		if (is_array($value) || is_null($value)) {
 			return $value;
 		} elseif (preg_match('#^[0-9]+/[0-9]+$#', $value)) {
 			return getid3_lib::DecimalizeFraction($value);

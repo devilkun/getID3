@@ -208,14 +208,14 @@ class getid3_nsv extends getid3_handler
 			$CommentPairArray = explode("\x01".' ', $info['nsv']['NSVf']['metadata']);
 			foreach ($CommentPairArray as $CommentPair) {
 				if (strstr($CommentPair, '='."\x01")) {
-					list($key, $value) = explode('='."\x01", $CommentPair, 2);
+					[$key, $value] = explode('='."\x01", $CommentPair, 2);
 					$info['nsv']['comments'][strtolower($key)][] = trim(str_replace("\x01", '', $value));
 				}
 			}
 		}
 
 		$info['playtime_seconds'] = $info['nsv']['NSVf']['playtime_ms'] / 1000;
-		$info['bitrate']          = ($info['nsv']['NSVf']['file_size'] * 8) / $info['playtime_seconds'];
+		$info['bitrate']          = getid3_lib::SafeDiv($info['nsv']['NSVf']['file_size'] * 8, $info['playtime_seconds']);
 
 		return true;
 	}

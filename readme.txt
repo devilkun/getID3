@@ -20,7 +20,8 @@ GNU LGPL: https://gnu.org/licenses/lgpl.html                 (v3)
 
 Mozilla MPL: https://www.mozilla.org/MPL/2.0/                (v2)
 
-getID3 Commercial License: https://www.getid3.org/#gCL (payment required)
+getID3 Commercial License: https://www.getid3.org/#gCL
+(no longer available, existing licenses remain valid)
 
 *****************************************************************
 *****************************************************************
@@ -46,8 +47,8 @@ Support
 ===========================================================================
 
 Q: I have a question, or I found a bug. What do I do?
-A: The preferred method of support requests and/or bug reports is the
-   forum at http://support.getid3.org/
+A: The preferred method of support requests and/or bug reports is
+   https://github.com/JamesHeinrich/getID3/issues
 
 
 
@@ -119,6 +120,7 @@ Reads & parses (to varying degrees):
   * BMP
   * GIF
   * JPEG
+  * JPEG XL
   * PNG
   * TIFF
   * SWF (Flash)
@@ -147,8 +149,9 @@ Requirements
 
 * PHP 4.2.0 up to 5.2.x for getID3() 1.7.x  (and earlier)
 * PHP 5.0.5 (or higher) for getID3() 1.8.x  (and up)
-* PHP 5.3.0 (or higher) for getID3() 1.9.17 (and up)
-* PHP 5.3.0 (or higher) for getID3() 2.0.x  (and up)
+* PHP 5.3.0 (or higher) for getID3() 1.9.x  (earlier versions)
+* PHP 7.1.0 (or higher) for getID3() 1.9.28 (and up)
+* PHP 5.4.0 (or higher) for getID3() 2.0.x  (and up)
 * at least 4MB memory for PHP. 8MB or more is highly recommended.
   12MB is required with all modules loaded.
 

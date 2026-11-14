@@ -182,7 +182,7 @@ class getID3
 	public $option_md5_data          = false;
 
 	/**
-	 * Use MD5 of source file if availble - only FLAC and OptimFROG
+	 * Use MD5 of source file if available - only FLAC and OptimFROG
 	 *
 	 * @var bool
 	 */
@@ -387,7 +387,7 @@ class getID3
 	 */
 	protected $startup_warning = '';
 
-	const VERSION           = '1.9.21-202112151109';
+	const VERSION           = '1.9.28-202611141012';
 	const FREAD_BUFFER_SIZE = 32768;
 
 	const ATTACHMENTS_NONE   = false;
@@ -409,10 +409,10 @@ class getID3
 		$memoryLimit = ini_get('memory_limit');
 		if (preg_match('#([0-9]+) ?M#i', $memoryLimit, $matches)) {
 			// could be stored as "16M" rather than 16777216 for example
-			$memoryLimit = $matches[1] * 1048576;
+			$memoryLimit = (int) $matches[1] * 1048576;
 		} elseif (preg_match('#([0-9]+) ?G#i', $memoryLimit, $matches)) { // The 'G' modifier is available since PHP 5.1.0
 			// could be stored as "2G" rather than 2147483648 for example
-			$memoryLimit = $matches[1] * 1073741824;
+			$memoryLimit = (int) $matches[1] * 1073741824;
 		}
 		$this->memory_limit = $memoryLimit;
 
@@ -436,11 +436,11 @@ class getID3
 			$this->startup_error .= 'WARNING: php.ini contains "mbstring.func_overload = '.ini_get('mbstring.func_overload').'", getID3 cannot run with this setting (bitmask 2 (string functions) cannot be set). Recommended to disable entirely.'."\n";
 		}
 
-		// check for magic quotes in PHP < 7.4.0 (when these functions became deprecated)
-		if (version_compare(PHP_VERSION, '7.4.0', '<')) {
+		// check for magic quotes in PHP < 5.4.0 (when these options were removed and getters always return false)
+		if (version_compare(PHP_VERSION, '5.4.0', '<')) {
 			// Check for magic_quotes_runtime
 			if (function_exists('get_magic_quotes_runtime')) {
-				if (get_magic_quotes_runtime()) {
+				if (get_magic_quotes_runtime()) { // @phpstan-ignore-line
 					$this->startup_error .= 'magic_quotes_runtime must be disabled before running getID3(). Surround getid3 block by set_magic_quotes_runtime(0) and set_magic_quotes_runtime(1).'."\n";
 				}
 			}
@@ -481,12 +481,12 @@ class getID3
 					if (strpos($value, ' ') !== false) {
 						if (!empty($path_so_far)) {
 							$commandline = 'dir /x '.escapeshellarg(implode(DIRECTORY_SEPARATOR, $path_so_far));
-							$dir_listing = `$commandline`;
+							$dir_listing = shell_exec($commandline);
 							$lines = explode("\n", $dir_listing);
 							foreach ($lines as $line) {
 								$line = trim($line);
 								if (preg_match('#^([0-9/]{10}) +([0-9:]{4,5}( [AP]M)?) +(<DIR>|[0-9,]+) +([^ ]{0,11}) +(.+)$#', $line, $matches)) {
-									list($dummy, $date, $time, $ampm, $filesize, $shortname, $filename) = $matches;
+									[$dummy, $date, $time, $ampm, $filesize, $shortname, $filename] = $matches;
 									if ((strtoupper($filesize) == '<DIR>') && (strtolower($filename) == strtolower($value))) {
 										$value = $shortname;
 									}
@@ -529,7 +529,7 @@ class getID3
 	 * @return bool
 	 */
 	public function setOption($optArray) {
-		if (!is_array($optArray) || empty($optArray)) {
+		if (empty($optArray)) {
 			return false;
 		}
 		foreach ($optArray as $opt => $val) {
@@ -568,7 +568,7 @@ class getID3
 			$this->info['php_memory_limit'] = (($this->memory_limit > 0) ? $this->memory_limit : false);
 
 			// remote files not supported
-			if (preg_match('#^(ht|f)tp://#', $filename)) {
+			if (preg_match('#^(ht|f)tps?://#', $filename)) {
 				throw new getid3_exception('Remote files are not supported - please copy the file locally first');
 			}
 
@@ -680,6 +680,8 @@ class getID3
 					catch (getid3_exception $e) {
 						throw $e;
 					}
+				} else {
+					$this->warning('skipping check for '.$tag_name.' tags since option_tag_'.$tag_name.'=FALSE');
 				}
 			}
 			if (isset($this->info['id3v2']['tag_offset_start'])) {
@@ -770,7 +772,7 @@ class getID3
 			// set module-specific options
 			foreach (get_object_vars($this) as $getid3_object_vars_key => $getid3_object_vars_value) {
 				if (preg_match('#^options_([^_]+)_([^_]+)_(.+)$#i', $getid3_object_vars_key, $matches)) {
-					list($dummy, $GOVgroup, $GOVmodule, $GOVsetting) = $matches;
+					[$dummy, $GOVgroup, $GOVmodule, $GOVsetting] = $matches;
 					$GOVgroup = (($GOVgroup == 'audiovideo') ? 'audio-video' : $GOVgroup); // variable names can only contain 0-9a-z_ so standardize here
 					if (($GOVgroup == $determined_format['group']) && ($GOVmodule == $determined_format['module'])) {
 						$class->$GOVsetting = $getid3_object_vars_value;
@@ -1006,7 +1008,7 @@ class getID3
 							'mime_type' => 'audio/dsd',
 						),
 
-				// DTS  - audio       - Dolby Theatre System
+				// DTS  - audio       - Digital Theater Systems
 				'dts'  => array(
 							'pattern'   => '^\\x7F\\xFE\\x80\\x01',
 							'group'     => 'audio',
@@ -1054,15 +1056,16 @@ class getID3
 							'mime_type' => 'audio/x-monkeys-audio',
 						),
 
-// has been known to produce false matches in random files (e.g. JPEGs), leave out until more precise matching available
-//				// MOD  - audio       - MODule (assorted sub-formats)
-//				'mod'  => array(
-//							'pattern'   => '^.{1080}(M\\.K\\.|M!K!|FLT4|FLT8|[5-9]CHN|[1-3][0-9]CH)',
-//							'group'     => 'audio',
-//							'module'    => 'mod',
-//							'option'    => 'mod',
-//							'mime_type' => 'audio/mod',
-//						),
+
+				// MOD  - audio       - MODule (SoundTracker)
+				'mod'  => array(
+							//'pattern'   => '^.{1080}(M\\.K\\.|M!K!|FLT4|FLT8|[5-9]CHN|[1-3][0-9]CH)', // has been known to produce false matches in random files (e.g. JPEGs), leave out until more precise matching available
+							'pattern'   => '^.{1080}(M\\.K\\.)',
+							'group'     => 'audio',
+							'module'    => 'mod',
+							'option'    => 'mod',
+							'mime_type' => 'audio/mod',
+						),
 
 				// MOD  - audio       - MODule (Impulse Tracker)
 				'it'   => array(
@@ -1325,6 +1328,26 @@ class getID3
 							'fail_ape'  => 'ERROR',
 						),
 
+				// JXL  - still image - JPEG XL (bare codestream)
+				'jpegxl'  => array(
+							'pattern'   => '^\\xFF\\x0A',
+							'group'     => 'graphic',
+							'module'    => 'jpegxl',
+							'mime_type' => 'image/jxl',
+							'fail_id3'  => 'ERROR',
+							'fail_ape'  => 'ERROR',
+						),
+
+				// JXL  - still image - JPEG XL (ISO BMFF container)
+				'jpegxlbmff'  => array(
+							'pattern'   => '^\\x00\\x00\\x00\\x0CJXL\\x20\\x0D\\x0A\\x87\\x0A',
+							'group'     => 'graphic',
+							'module'    => 'jpegxl',
+							'mime_type' => 'image/jxl',
+							'fail_id3'  => 'ERROR',
+							'fail_ape'  => 'ERROR',
+						),
+
 				// PCD  - still image - Kodak Photo CD
 				'pcd'  => array(
 							'pattern'   => '^.{2048}PCD_IPI\\x00',
@@ -1463,8 +1486,28 @@ class getID3
 							'fail_ape'  => 'ERROR',
 						),
 
+				// XZ   - data         - XZ compressed data
+				'7zip'  => array(
+							'pattern'   => '^7z\\xBC\\xAF\\x27\\x1C',
+							'group'     => 'archive',
+							'module'    => '7zip',
+							'mime_type' => 'application/x-7z-compressed',
+							'fail_id3'  => 'ERROR',
+							'fail_ape'  => 'ERROR',
+						),
+
 
 				// Misc other formats
+
+				// GPX - data         - GPS Exchange Format
+				'gpx' => array (
+							'pattern'   => '^<\\?xml [^>]+>[\s]*<gpx ',
+							'group'     => 'misc',
+							'module'    => 'gpx',
+							'mime_type' => 'application/gpx+xml',
+							'fail_id3'  => 'ERROR',
+							'fail_ape'  => 'ERROR',
+						),
 
 				// PAR2 - data        - Parity Volume Set Specification 2.0
 				'par2' => array (
@@ -1563,7 +1606,7 @@ class getID3
 			// and verify there's at least one instance of "TRACK xx AUDIO" in the file
 			$GetFileFormatArray = $this->GetFileFormatArray();
 			$info = $GetFileFormatArray['cue'];
-			$info['include']   = 'module.'.$info['group'].'.'.$info['module'].'.php';
+			$info['include'] = 'module.'.$info['group'].'.'.$info['module'].'.php';
 			return $info;
 		}
 
@@ -1586,14 +1629,21 @@ class getID3
 		// loop thru array
 		foreach ($array as $key => $value) {
 
-			// go recursive
-			if (is_array($value)) {
-				$this->CharConvert($array[$key], $encoding);
-			}
+			if ($key == 'picture') { // https://github.com/JamesHeinrich/getID3/issues/508
 
-			// convert string
-			elseif (is_string($value)) {
+				// pictures are binary data and should not be altered
+				continue;
+
+			} elseif (is_array($value)) {
+
+				// convert arrays recursively
+				$this->CharConvert($array[$key], $encoding);
+
+			} elseif (is_string($value)) {
+
+				// actually convert only strings
 				$array[$key] = trim(getid3_lib::iconv_fallback($encoding, $this->encoding, $value));
+
 			}
 		}
 	}
@@ -1633,7 +1683,7 @@ class getID3
 
 		// loop through comments array
 		foreach ($tags as $comment_name => $tagname_encoding_array) {
-			list($tag_name, $encoding) = $tagname_encoding_array;
+			[$tag_name, $encoding] = $tagname_encoding_array;
 
 			// fill in default encoding type if not already present
 			if (isset($this->info[$comment_name]) && !isset($this->info[$comment_name]['encoding'])) {
@@ -1647,7 +1697,7 @@ class getID3
 						if (is_string($value)) {
 							$value = trim($value, " \r\n\t"); // do not trim nulls from $value!! Unicode characters will get mangled if trailing nulls are removed!
 						}
-						if (isset($value) && $value !== "") {
+						if (isset($value) && ($value !== '')) {
 							if (!is_numeric($key)) {
 								$this->info['tags'][trim($tag_name)][trim($tag_key)][$key] = $value;
 							} else {
@@ -1797,8 +1847,8 @@ class getID3
 
 					if (file_exists(GETID3_HELPERAPPSDIR.'vorbiscomment.exe')) {
 
-						$commandline = '"'.GETID3_HELPERAPPSDIR.'vorbiscomment.exe" -w -c "'.$empty.'" "'.$file.'" "'.$temp.'"';
-						$VorbisCommentError = `$commandline`;
+						$commandline = '"'.GETID3_HELPERAPPSDIR.'vorbiscomment.exe" -w -c '.escapeshellarg($empty).' '.escapeshellarg($file).' '.escapeshellarg($temp);
+						$VorbisCommentError = shell_exec($commandline);
 
 					} else {
 
@@ -1809,7 +1859,7 @@ class getID3
 				} else {
 
 					$commandline = 'vorbiscomment -w -c '.escapeshellarg($empty).' '.escapeshellarg($file).' '.escapeshellarg($temp).' 2>&1';
-					$VorbisCommentError = `$commandline`;
+					$VorbisCommentError = shell_exec($commandline);
 
 				}
 
@@ -1879,8 +1929,8 @@ class getID3
 
 		// Calculate combined bitrate - audio + video
 		$CombinedBitrate  = 0;
-		$CombinedBitrate += (isset($this->info['audio']['bitrate']) ? $this->info['audio']['bitrate'] : 0);
-		$CombinedBitrate += (isset($this->info['video']['bitrate']) ? $this->info['video']['bitrate'] : 0);
+		$CombinedBitrate += (isset($this->info['audio']['bitrate']) && ($this->info['audio']['bitrate'] != 'free') ? $this->info['audio']['bitrate'] : 0);
+		$CombinedBitrate += (isset($this->info['video']['bitrate'])                                                ? $this->info['video']['bitrate'] : 0);
 		if (($CombinedBitrate > 0) && empty($this->info['bitrate'])) {
 			$this->info['bitrate'] = $CombinedBitrate;
 		}
@@ -1927,6 +1977,12 @@ class getID3
 		// Set playtime string
 		if (!empty($this->info['playtime_seconds']) && empty($this->info['playtime_string'])) {
 			$this->info['playtime_string'] = getid3_lib::PlaytimeString($this->info['playtime_seconds']);
+		}
+
+		// Look up codec name if fourcc is set but codec is not
+		if (!empty($this->info['video']['fourcc']) && !isset($this->info['video']['codec'])) {
+			$this->include_module('audio-video.riff');
+			$this->info['video']['codec'] = getid3_riff::fourccLookup($this->info['video']['fourcc']);
 		}
 	}
 
@@ -1976,7 +2032,7 @@ class getID3
 		}
 		$BitrateUncompressed = $this->info['video']['resolution_x'] * $this->info['video']['resolution_y'] * $this->info['video']['bits_per_sample'] * $FrameRate;
 
-		$this->info['video']['compression_ratio'] = $BitrateCompressed / $BitrateUncompressed;
+		$this->info['video']['compression_ratio'] = getid3_lib::SafeDiv($BitrateCompressed, $BitrateUncompressed, 1);
 		return true;
 	}
 
@@ -1987,7 +2043,9 @@ class getID3
 		if (empty($this->info['audio']['bitrate']) || empty($this->info['audio']['channels']) || empty($this->info['audio']['sample_rate']) || !is_numeric($this->info['audio']['sample_rate'])) {
 			return false;
 		}
-		$this->info['audio']['compression_ratio'] = $this->info['audio']['bitrate'] / ($this->info['audio']['channels'] * $this->info['audio']['sample_rate'] * (!empty($this->info['audio']['bits_per_sample']) ? $this->info['audio']['bits_per_sample'] : 16));
+		if ($this->info['audio']['bitrate'] != 'free') {
+			$this->info['audio']['compression_ratio'] = $this->info['audio']['bitrate'] / ($this->info['audio']['channels'] * $this->info['audio']['sample_rate'] * (!empty($this->info['audio']['bits_per_sample']) ? $this->info['audio']['bits_per_sample'] : 16));
+		}
 
 		if (!empty($this->info['audio']['streams'])) {
 			foreach ($this->info['audio']['streams'] as $streamnumber => $streamdata) {
@@ -2182,6 +2240,8 @@ abstract class getid3_handler
 	}
 
 	/**
+	 * @phpstan-impure
+	 *
 	 * @return int|bool
 	 */
 	protected function ftell() {
@@ -2193,6 +2253,8 @@ abstract class getid3_handler
 
 	/**
 	 * @param int $bytes
+	 *
+	 * @phpstan-impure
 	 *
 	 * @return string|false
 	 *
@@ -2239,6 +2301,8 @@ abstract class getid3_handler
 	 * @param int $bytes
 	 * @param int $whence
 	 *
+	 * @phpstan-impure
+	 *
 	 * @return int
 	 *
 	 * @throws getid3_exception
@@ -2280,6 +2344,8 @@ abstract class getid3_handler
 	}
 
 	/**
+	 * @phpstan-impure
+	 *
 	 * @return string|false
 	 *
 	 * @throws getid3_exception
@@ -2335,6 +2401,8 @@ abstract class getid3_handler
 	}
 
 	/**
+	 * @phpstan-impure
+	 *
 	 * @return bool
 	 */
 	protected function feof() {
@@ -2418,7 +2486,20 @@ abstract class getid3_handler
 				if (!is_dir($dir) || !getID3::is_writable($dir)) { // check supplied directory
 					throw new Exception('supplied path ('.$dir.') does not exist, or is not writable');
 				}
-				$dest = $dir.DIRECTORY_SEPARATOR.$name.($image_mime ? '.'.getid3_lib::ImageExtFromMime($image_mime) : '');
+				// $name and $image_mime may come from the analyzed file: never let them form a path
+				$name = preg_replace('#[^A-Za-z0-9._-]#', '_', basename(str_replace('\\', '/', $name)));
+				if (trim($name, '.') === '') {
+					$name = 'attachment_'.$offset;
+				}
+				$ext = '';
+				if ($image_mime) {
+					$ext = strtolower(getid3_lib::ImageExtFromMime($image_mime));
+					if (!in_array($ext, array('jpg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'avif', 'heic'), true)) {
+						$ext = 'bin';
+					}
+					$ext = '.'.$ext;
+				}
+				$dest = $dir.DIRECTORY_SEPARATOR.$name.$ext;
 
 				// create dest file
 				if (($fp_dest = fopen($dest, 'wb')) == false) {
